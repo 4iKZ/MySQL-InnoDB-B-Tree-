@@ -1,0 +1,5 @@
+{
+  "name": "InnoDB B+ Tree Viz",
+  "description": "An interactive visualization of MySQL InnoDB B+ Tree index structures with multi-model AI explanations.",
+  "requestFramePermissions": []
+}
