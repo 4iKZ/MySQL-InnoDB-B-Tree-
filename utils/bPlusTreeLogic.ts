@@ -282,12 +282,19 @@ export class BPlusTree {
       const borrowedKey = rightSibling.keys.shift()!;
       const borrowedData = rightSibling.data.shift()!;
 
-      // Update parent's separator key to the new minimum key in right sibling
+      // After borrowing, update the separator key in parent to the new minimum key
+      // of the right sibling (i.e., its first remaining key).
+      // This maintains the B+ tree invariant: parent.keys[childIdx] == rightSibling.min
       if (rightSibling.keys.length > 0) {
         parent.keys[childIdx] = rightSibling.keys[0];
       } else {
-        // Right sibling became empty - should trigger merge instead
-        console.warn('Right sibling became empty after borrow, consider merging instead');
+        // This should never happen: handleUnderflow only calls borrowFromRight when
+        // rightSibling.keys.length > MIN_KEYS, guaranteeing at least 2 keys before borrow.
+        // If it does happen, the tree structure is already corrupted; log a clear error.
+        console.error(
+          '[BPlusTree] borrowFromRight: right sibling became empty after borrow. ' +
+          'This indicates a bug in handleUnderflow. Tree structure may be corrupted.'
+        );
       }
 
       node.keys.push(borrowedKey);
