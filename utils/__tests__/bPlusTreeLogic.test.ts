@@ -390,6 +390,51 @@ describe('BPlusTree', () => {
     });
   });
 
+  describe('链表完整性 - borrowFromRight 场景', () => {
+    it('借用右兄弟后叶子 next 链表指针应保持完整', () => {
+      const tree = new BPlusTree((r: TableRow) => r.id, { uniqueKeys: true });
+      // Insert [1..7] then delete 1 to trigger borrowFromRight on the leftmost leaf
+      const rows = Array.from({ length: 7 }, (_, i) => ({ id: i + 1, name: `U${i + 1}`, age: 20 + i }));
+      rows.forEach(r => tree.insert(r));
+      tree.delete(1);
+
+      // Traverse linked list from leftmost leaf
+      let leaf: any = tree.root;
+      while (!leaf.isLeaf) leaf = leaf.children[0];
+
+      const keys: number[] = [];
+      while (leaf) {
+        keys.push(...leaf.keys);
+        leaf = leaf.next;
+      }
+
+      // All remaining keys should be reachable in sorted order
+      expect(keys).toEqual([2, 3, 4, 5, 6, 7]);
+    });
+
+    it('大量插入删除后 next 链路应完整且有序', () => {
+      const tree = new BPlusTree((r: TableRow) => r.id, { uniqueKeys: true });
+      const rows = Array.from({ length: 20 }, (_, i) => ({ id: i + 1, name: `U${i + 1}`, age: 20 + i }));
+      rows.forEach(r => tree.insert(r));
+
+      // Delete 10 keys spread across the tree
+      [2, 4, 6, 8, 10, 12, 14, 16, 18, 20].forEach(k => tree.delete(k));
+
+      // Traverse linked list from leftmost leaf
+      let leaf: any = tree.root;
+      while (!leaf.isLeaf) leaf = leaf.children[0];
+
+      const keys: number[] = [];
+      while (leaf) {
+        keys.push(...leaf.keys);
+        leaf = leaf.next;
+      }
+
+      // Only odd ids should remain, in sorted order
+      expect(keys).toEqual([1, 3, 5, 7, 9, 11, 13, 15, 17, 19]);
+    });
+  });
+
   describe('分隔键不变量', () => {
     it('删除叶子首key但不下溢时应更新父分隔键', () => {
       const tree = new BPlusTree((r: TableRow) => r.id, { uniqueKeys: true });
@@ -418,6 +463,16 @@ describe('BPlusTree', () => {
       }));
       rows.forEach(r => tree.insert(r));
       [2, 3, 4, 6, 7, 8, 9, 12, 13, 14, 18, 19].forEach(k => tree.delete(k));
+
+      assertSeparatorInvariants(tree.root);
+    });
+
+    it('借用右兄弟后父分隔键应满足不变量', () => {
+      const tree = new BPlusTree((r: TableRow) => r.id, { uniqueKeys: true });
+      // Insert [1..7] then delete 1 to trigger borrowFromRight
+      const rows = Array.from({ length: 7 }, (_, i) => ({ id: i + 1, name: `U${i + 1}`, age: 20 + i }));
+      rows.forEach(r => tree.insert(r));
+      tree.delete(1);
 
       assertSeparatorInvariants(tree.root);
     });
